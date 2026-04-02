@@ -5,7 +5,8 @@ const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   
   if (!token) {
-    return res.status(401).json({ error: '请先登录' });
+    req.userId = 0; // 未登录用户
+    return next();
   }
   
   try {
@@ -13,7 +14,8 @@ const authMiddleware = (req, res, next) => {
     req.userId = decoded.userId;
     next();
   } catch (err) {
-    return res.status(401).json({ error: '登录已过期' });
+    req.userId = 0; // token 无效视为未登录
+    return next();
   }
 };
 

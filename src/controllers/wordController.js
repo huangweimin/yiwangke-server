@@ -3,7 +3,7 @@ const pool = require('../models/db');
 // 获取单词列表（支持分页和分类）
 exports.getWords = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId || 0; // 如果未登录 userId 为 0
     const { root, search, category, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     
@@ -13,7 +13,7 @@ exports.getWords = async (req, res) => {
           WHEN ulr.status = 'mastered' THEN 'mastered'
           WHEN ulr.status = 'learning' THEN 'learning'
           WHEN ulr.status = 'new' THEN 'new'
-          ELSE 'not_learned'
+          ELSE 'new'
         END as learn_status
       FROM words w
       LEFT JOIN user_learning_records ulr ON w.word_id = ulr.word_id AND ulr.user_id = ?

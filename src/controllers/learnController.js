@@ -209,7 +209,16 @@ exports.learnNewWord = async (req, res) => {
     );
     
     if (existing.length > 0) {
-      return res.status(400).json({ error: '该词已学习过' });
+      const status = existing[0].status;
+      if (status === 'mastered') {
+        // 已掌握的词可以重新学习，重置状态
+        await pool.query(
+          'UPDATE user_learning_records SET status=?, repetitions=0, interval_days=0, review_count=0 WHERE user_id=? AND word_id=?',
+          ['learning', userId, wordId]
+        );
+        return res.json({ success: true, message: '已重新加入学习', reset: true });
+      }
+      return res.json({ success: true, message: '该词已在学习中', already_learned: true });
     }
     
     // 创建新词记录
@@ -238,6 +247,39 @@ exports.learnNewWord = async (req, res) => {
     });
   } catch (err) {
     console.error('学习新词失败:', err);
+    res.status(500).json({ error: '服务器错误' });
+  }
+};
+
+// 加入复习队列
+exports.addToReview = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { wordId } = req.body;
+    
+    if (!wordId) {
+      return res.status(400).json({ error: '缺少单词ID' });
+    }
+    
+    // 检查是否已有记录
+    const [existing] = await pool.query(
+      'SELECT * FROM user_learning_records WHERE user_id = ? AND word_id = ?',
+      [userId, wordId]
+    );
+    
+    if (existing.length > 0) {
+      return res.json({ success: true, message: '已在复习队列' });
+    }
+    
+    // 加入复习队列，下次复习时间设为现在（立即可复习）
+    await pool.query(`
+      INSERT INTO user_learning_records (user_id, word_id, ease_factor, interval_days, repetitions, next_review, status, review_count)
+      VALUES (?, ?, 2.5, 0, 0, NOW(), 'learning', 0)
+    `, [userId, wordId]);
+    
+    res.json({ success: true, message: '已加入复习队列' });
+  } catch (err) {
+    console.error('加入复习失败:', err);
     res.status(500).json({ error: '服务器错误' });
   }
 };
