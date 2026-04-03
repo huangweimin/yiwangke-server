@@ -123,6 +123,7 @@ exports.submitReview = async (req, res) => {
   try {
     const userId = req.userId;
     const { wordId, quality } = req.body; // quality: 0-忘记 1-模糊 2-记住
+    const today = new Date().toISOString().split('T')[0];
     
     if (!wordId || quality === undefined) {
       return res.status(400).json({ error: '参数不完整' });
@@ -174,9 +175,13 @@ exports.submitReview = async (req, res) => {
     await pool.query(`
       UPDATE user_stats SET
         today_reviewed = today_reviewed + 1,
+        last_study_date = ?,
         mastered_words = (SELECT COUNT(*) FROM user_learning_records WHERE user_id = ? AND status = 'mastered')
       WHERE user_id = ?
-    `, [userId, userId]);
+    `, [today, userId, userId]);
+    
+    // 更新连续学习天数
+    await updateStreak(userId);
     
     res.json({
       success: true,
@@ -319,6 +324,7 @@ async function updateStreak(userId) {
 exports.getStats = async (req, res) => {
   try {
     const userId = req.userId;
+    const today = new Date().toISOString().split('T')[0];
     
     const [stats] = await pool.query(
       'SELECT * FROM user_stats WHERE user_id = ?',
@@ -337,11 +343,14 @@ exports.getStats = async (req, res) => {
       });
     }
     
+    // 检查是否需要重置今日计数（新的一天）
+    const isNewDay = stats[0].last_study_date !== today;
+    
     res.json({
       totalWords: totalWords[0].count,
       masteredWords: stats[0].mastered_words,
-      todayLearned: stats[0].today_learned,
-      todayReviewed: stats[0].today_reviewed,
+      todayLearned: isNewDay ? 0 : stats[0].today_learned,
+      todayReviewed: isNewDay ? 0 : stats[0].today_reviewed,
       streakDays: stats[0].streak_days,
       lastStudyDate: stats[0].last_study_date
     });
