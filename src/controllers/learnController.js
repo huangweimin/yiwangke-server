@@ -125,6 +125,10 @@ exports.submitReview = async (req, res) => {
     const { wordId, quality } = req.body; // quality: 0-忘记 1-模糊 2-记住
     const today = new Date().toISOString().split('T')[0];
     
+    if (!userId) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+    
     if (!wordId || quality === undefined) {
       return res.status(400).json({ error: '参数不完整' });
     }
@@ -201,6 +205,10 @@ exports.learnNewWord = async (req, res) => {
     const userId = req.userId;
     const { wordId } = req.body;
     
+    if (!userId) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+    
     if (!wordId) {
       return res.status(400).json({ error: '缺少单词ID' });
     }
@@ -261,6 +269,10 @@ exports.addToReview = async (req, res) => {
   try {
     const userId = req.userId;
     const { wordId } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ error: '请先登录' });
+    }
     
     if (!wordId) {
       return res.status(400).json({ error: '缺少单词ID' });
@@ -324,6 +336,11 @@ async function updateStreak(userId) {
 exports.getStats = async (req, res) => {
   try {
     const userId = req.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+    
     const today = new Date().toISOString().split('T')[0];
     
     const [stats] = await pool.query(
